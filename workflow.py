@@ -6,15 +6,13 @@ import safe
 INFURA_PRIVATE_KEY = safe.INFURA_PRIVATE_KEY
 EOA_ACCOUNT = Web3.toChecksumAddress(safe.EOA_ACCOUNT)
 EOA_PRIVATE_KEY = safe.EOA_PRIVATE_KEY
-CHECK_TRX_POLL_LATENCY = 60
-CHECK_TRX_TIMEOUT = 600
-
+CHECK_LATENCY = 60
+CHECK_TIMEOUT = 600
 ROPSTEN_ORACLE_ADDRESS = "0x5907998f1BE158D08C43105c3862200f7718e26e"
 ROPSTEN_LOTTERY_ADDRESS = "0x737e229cc849047a35d7B2B9ca6f1Ebd6eaF1a3F"
-PROVIDER = f"https://ropsten.infura.io/v3/{INFURA_PRIVATE_KEY}"
 
-ORACLE_ADDRESS = Web3.toChecksumAddress(ROPSTEN_ORACLE_ADDRESS)
-ORACLE_ABI = [
+oracle_address = Web3.toChecksumAddress(ROPSTEN_ORACLE_ADDRESS)
+oracle_abi = [
     {
         "inputs": [
             {
@@ -123,8 +121,8 @@ ORACLE_ABI = [
     }
 ]
 
-LOTTERY_ADDRESS = Web3.toChecksumAddress(ROPSTEN_LOTTERY_ADDRESS)
-LOTTERY_ABI = [
+lottery_address = Web3.toChecksumAddress(ROPSTEN_LOTTERY_ADDRESS)
+lottery_abi = [
     {
         "anonymous": False,
         "inputs": [
@@ -166,140 +164,98 @@ LOTTERY_ABI = [
     }
 ]
 
-W3 = Web3(Web3.HTTPProvider(PROVIDER))
-
-if not W3.isConnected():
+provider = f"https://ropsten.infura.io/v3/{INFURA_PRIVATE_KEY}"
+w3 = Web3(Web3.HTTPProvider(provider))
+if not w3.isConnected():
     raise Exception("Not connected to network provider.")
 
+gas_price = w3.eth.gas_price
 
-def oracle_get_fee():
-    contract = W3.eth.contract(address=ORACLE_ADDRESS, abi=ORACLE_ABI)
-    fee = contract.functions.fee().call()
-    print(f"ORACLE.call.fee() return '{fee}'")
-    return fee
+print(f"use ORACLE = {oracle_address} AS oracle smart contract")
+print(f"use LOTTERY = {lottery_address} AS lottery smart contract")
 
+# INTERACTION WITH ORACLE SMART CONTRACT
 
-def oracle_get_receipt():
-    contract = W3.eth.contract(address=ORACLE_ADDRESS, abi=ORACLE_ABI)
-    receipt = contract.functions.getReceipt().call()
-    print(f"ORACLE.call.getReceipt() return '{receipt}'")
-    return receipt
+oracle_contract = w3.eth.contract(address=oracle_address, abi=oracle_abi)
+oracle_fx = oracle_contract.functions
 
+# 1 - Get receipt
+receipt = oracle_fx.getReceipt().call()
 
-def oracle_request_random(receipt):
-    contract = W3.eth.contract(address=ORACLE_ADDRESS, abi=ORACLE_ABI)
-    nonce = W3.eth.get_transaction_count(EOA_ACCOUNT)
-    fee = oracle_get_fee()
-    ethfee = W3.fromWei(fee, "ether")
-    transaction = contract.functions.requestRandom(
-        receipt,
-        LOTTERY_ADDRESS
-    ).buildTransaction({
-        "gasPrice": W3.eth.gas_price,
-        'from': EOA_ACCOUNT,
-        'nonce': nonce,
-        'value': fee
-    })
-    signed_txn = W3.eth.account.sign_transaction(transaction,
-                                                 private_key=EOA_PRIVATE_KEY)
-    tx_hash_primitive = W3.eth.send_raw_transaction(signed_txn.rawTransaction)
-    tx_hash = W3.toHex(tx_hash_primitive)
-    print(f"ORACLE.transaction.requestRandom(RECEIPT, LOTTERY) [PAY {ethfee}]")
-    print(f"\tTransaction hash: {tx_hash}")
-    print("\tWait for transaction receipt...")
-    W3.eth.wait_for_transaction_receipt(tx_hash, timeout=CHECK_TRX_TIMEOUT,
-                                        poll_latency=CHECK_TRX_POLL_LATENCY)
-    return tx_hash
+print(f"ORACLE.call.getReceipt() return '{receipt}'")
+print(f"use RECEIPT = {receipt}")
 
+# 2 - Get fee
+fee = oracle_fx.fee().call()
+eth_fee = w3.fromWei(fee, "ether")
 
-def oracle_print_test_random(receipt):
-    """Useful to test generated Random.
-    Il numero restituito tramite il metodo call() è diverso da quello
-    che si otterrà tramite una transazione
-    Dopo aver ottenuto un random tramite una transazione,
-    l'address verrà rimosso dalla safe list e non sarà più possibile utilizzare
-    questa funzione.
-    """
-    contract = W3.eth.contract(address=ORACLE_ADDRESS, abi=ORACLE_ABI)
-    n = contract.functions.getRandom(receipt).call({"from": LOTTERY_ADDRESS})
-    print(f"ORACLE.call.getRandom(RECEIPT) return '{n}'")
+print(f"ORACLE.call.fee() return '{fee}'")
 
+# 3 - Request for a random to the oracle smart contract.
+#     Oracle requestRandom transaction must:
+#       - include receipt
+#       - include smart contract address
+#         which will be allowed to retrieve the random when ready.
+#       - pay the fee for the service
+nonce = w3.eth.get_transaction_count(EOA_ACCOUNT)
+tx = oracle_fx.requestRandom(receipt, lottery_address).buildTransaction({
+    "gasPrice": gas_price,
+    'from': EOA_ACCOUNT,
+    'nonce': nonce,
+    'value': fee
+})
+sig_tx = w3.eth.account.sign_transaction(tx, private_key=EOA_PRIVATE_KEY)
+tx_hash_primitive = w3.eth.send_raw_transaction(sig_tx.rawTransaction)
+tx_hash = w3.toHex(tx_hash_primitive)
 
-def wait_for_random(receipt):
-    contract = W3.eth.contract(address=ORACLE_ADDRESS, abi=ORACLE_ABI)
-    exist_random = False
-    while not exist_random:
-        exist_random = contract.functions.existRandom(receipt).call()
-        print(f"ORACLE.call.existRandom(RECEIPT) return '{exist_random}'")
-        if exist_random:
-            is_safe = contract.functions.isInSafeList(
-                receipt,
-                LOTTERY_ADDRESS
-            ).call()
-            print(f"ORACLE.call.isInSafeList(RECEIPT, LOTTERY) "
-                  f"return '{is_safe}'")
-            if not is_safe:
-                raise Exception("\tRandom exists but address "
-                                f"'{LOTTERY_ADDRESS}' is not in safe list.")
-        else:
-            print("\tRandom not exists yet - Retry in 30 sec...")
-            sleep(30)
+print(f"ORACLE.transaction.requestRandom(RECEIPT, LOTTERY) [PAY {eth_fee}]")
+print(f"\tWait for '{tx_hash}' transaction receipt...")
+w3.eth.wait_for_transaction_receipt(
+    tx_hash,
+    timeout=CHECK_TIMEOUT,
+    poll_latency=CHECK_LATENCY
+)
 
+# 4 - Wait until random is ready
+exist = False
+while not exist:
+    exist = oracle_fx.existRandom(receipt).call()
+    print(f"ORACLE.call.existRandom(RECEIPT) return '{exist}'")
+    if not exist:
+        print("\tRandom not exists yet - Retry in 30 sec...")
+        sleep(30)
 
-def lottery_declare_winner(receipt):
-    """Interazione con lo smart contract lottery per dichiarare il vincitore.
-    """
-    contract = W3.eth.contract(address=LOTTERY_ADDRESS, abi=LOTTERY_ABI)
-    nonce = W3.eth.get_transaction_count(EOA_ACCOUNT)
-    transaction = contract.functions.declareWinner(
-        receipt
-    ).buildTransaction({
-        "gasPrice": W3.eth.gas_price,
-        'from': EOA_ACCOUNT,
-        'nonce': nonce,
-    })
-    signed_txn = W3.eth.account.sign_transaction(transaction,
-                                                 private_key=EOA_PRIVATE_KEY)
-    tx_hash_primitive = W3.eth.send_raw_transaction(signed_txn.rawTransaction)
-    tx_hash = W3.toHex(tx_hash_primitive)
-    print(f"LOTTERY.transaction.declareWinner(RECEIPT)")
-    print(f"\tTransaction hash: {tx_hash}")
-    print("\tWait for transaction receipt...")
-    W3.eth.wait_for_transaction_receipt(tx_hash, timeout=CHECK_TRX_TIMEOUT,
-                                        poll_latency=CHECK_TRX_POLL_LATENCY)
-    return tx_hash
+# 5 - [OPTIONAL] Print example random
+n = oracle_fx.getRandom(receipt).call({"from": lottery_address})
+print(f"ORACLE.call.getRandom(RECEIPT) return '{n}'")
 
+# INTERACTION WITH LOTTERY SMART CONTRACT
 
-def lottery_print_winner():
-    """Mostra il vincitore della lotteria.
-    Nel caso della lottery di esempio viene restituto il numero random
-    ricevuto dallo smart contract dall'oracolo.
-    """
-    contract = W3.eth.contract(address=LOTTERY_ADDRESS, abi=LOTTERY_ABI)
-    winner_id = contract.functions.getWinner().call()
-    print(f"LOTTERY.call.getWinner() return {winner_id}")
-    print(f"\n\t*** Lottery winner/Generated-random IS '{winner_id}' ***")
+lottery_contract = w3.eth.contract(address=lottery_address, abi=lottery_abi)
+lottery_fx = lottery_contract.functions
 
+# 6 - Execute declareWinner transaction inside lottery smart contract.
+#     declareWinner will use the receipt to delegate to the oracle
+#     smart contract creating the random calling getRandom(receipt).
+nonce = w3.eth.get_transaction_count(EOA_ACCOUNT)
+tx = lottery_fx.declareWinner(receipt).buildTransaction({
+    "gasPrice": gas_price,
+    'from': EOA_ACCOUNT,
+    'nonce': nonce
+})
+sig_tx = w3.eth.account.sign_transaction(tx, private_key=EOA_PRIVATE_KEY)
+tx_hash_primitive = w3.eth.send_raw_transaction(sig_tx.rawTransaction)
+tx_hash = w3.toHex(tx_hash_primitive)
 
-def workflow():
+print(f"LOTTERY.transaction.declareWinner(RECEIPT)")
+print(f"\tWait for '{tx_hash}' transaction receipt...")
+w3.eth.wait_for_transaction_receipt(
+    tx_hash,
+    timeout=CHECK_TIMEOUT,
+    poll_latency=CHECK_LATENCY
+)
 
-    print(f"use ORACLE = {ORACLE_ADDRESS} (smart contract)")
-    print(f"use LOTTERY = {LOTTERY_ADDRESS} (smart contract)")
-
-    receipt = oracle_get_receipt()
-
-    print(f"use RECEIPT = {receipt}")
-
-    oracle_request_random(receipt)
-
-    wait_for_random(receipt)
-
-    oracle_print_test_random(receipt)
-
-    lottery_declare_winner(receipt)
-
-    lottery_print_winner()
-
-
-if __name__ == '__main__':
-    workflow()
+# 6 - [OPTIONAL] Print the winner.
+winner_id = lottery_fx.getWinner().call()
+print(f"LOTTERY.call.getWinner() return {winner_id}")
+print(f"\n\t*** Lottery winner/Generated-random IS '{winner_id}' ***")
