@@ -1,5 +1,7 @@
 from web3 import Web3
 from time import sleep
+
+# REMOVE safe, and replace all safe.VAR with your personal information
 import safe
 
 # CUSTOM SETTINGS
@@ -8,11 +10,86 @@ EOA_ACCOUNT = Web3.toChecksumAddress(safe.EOA_ACCOUNT)
 EOA_PRIVATE_KEY = safe.EOA_PRIVATE_KEY
 CHECK_LATENCY = 60
 CHECK_TIMEOUT = 600
-ROPSTEN_ORACLE_ADDRESS = "0x5907998f1BE158D08C43105c3862200f7718e26e"
+ROPSTEN_ORACLE_ADDRESS = "0x4D63600dF12128f2c1A91E451B2E96AFA84a12EE"
 ROPSTEN_LOTTERY_ADDRESS = "0x737e229cc849047a35d7B2B9ca6f1Ebd6eaF1a3F"
 
 oracle_address = Web3.toChecksumAddress(ROPSTEN_ORACLE_ADDRESS)
 oracle_abi = [
+    {
+        "inputs": [],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+    },
+    {
+        "anonymous": False,
+        "inputs": [
+            {
+                "indexed": True,
+                "internalType": "address",
+                "name": "previousOwner",
+                "type": "address"
+            },
+            {
+                "indexed": True,
+                "internalType": "address",
+                "name": "newOwner",
+                "type": "address"
+            }
+        ],
+        "name": "ManagerTransferred",
+        "type": "event"
+    },
+    {
+        "anonymous": False,
+        "inputs": [
+            {
+                "indexed": True,
+                "internalType": "address",
+                "name": "previousOwner",
+                "type": "address"
+            },
+            {
+                "indexed": True,
+                "internalType": "address",
+                "name": "newOwner",
+                "type": "address"
+            }
+        ],
+        "name": "OwnershipTransferred",
+        "type": "event"
+    },
+    {
+        "anonymous": False,
+        "inputs": [
+            {
+                "indexed": True,
+                "internalType": "address",
+                "name": "to",
+                "type": "address"
+            },
+            {
+                "indexed": False,
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+            }
+        ],
+        "name": "Payment",
+        "type": "event"
+    },
+    {
+        "inputs": [],
+        "name": "existsPendingRequest",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
     {
         "inputs": [
             {
@@ -21,7 +98,7 @@ oracle_abi = [
                 "type": "uint256"
             }
         ],
-        "name": "existRandom",
+        "name": "existsRandom",
         "outputs": [
             {
                 "internalType": "bool",
@@ -34,12 +111,38 @@ oracle_abi = [
     },
     {
         "inputs": [],
-        "name": "fee",
+        "name": "getFee",
         "outputs": [
             {
                 "internalType": "uint256",
                 "name": "",
                 "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "getManager",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "getOwner",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
             }
         ],
         "stateMutability": "view",
@@ -81,12 +184,25 @@ oracle_abi = [
         "inputs": [
             {
                 "internalType": "uint256",
+                "name": "number",
+                "type": "uint256"
+            }
+        ],
+        "name": "insertRandom",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
                 "name": "receipt",
                 "type": "uint256"
             },
             {
                 "internalType": "address",
-                "name": "to",
+                "name": "for_address",
                 "type": "address"
             }
         ],
@@ -110,13 +226,65 @@ oracle_abi = [
             },
             {
                 "internalType": "address",
-                "name": "forAddress",
+                "name": "for_address",
                 "type": "address"
             }
         ],
         "name": "requestRandom",
         "outputs": [],
         "stateMutability": "payable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "newFee",
+                "type": "uint256"
+            }
+        ],
+        "name": "setFee",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "newManager",
+                "type": "address"
+            }
+        ],
+        "name": "setManager",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "newSeed",
+                "type": "uint256"
+            }
+        ],
+        "name": "setUnsequencedSeed",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "newOwner",
+                "type": "address"
+            }
+        ],
+        "name": "transferOwnership",
+        "outputs": [],
+        "stateMutability": "nonpayable",
         "type": "function"
     }
 ]
@@ -186,7 +354,7 @@ print(f"ORACLE.call.getReceipt() return '{receipt}'")
 print(f"use RECEIPT = {receipt}")
 
 # 2 - Get fee
-fee = oracle_fx.fee().call()
+fee = oracle_fx.getFee().call()
 eth_fee = w3.fromWei(fee, "ether")
 
 print(f"ORACLE.call.fee() return '{fee}'")
@@ -219,7 +387,7 @@ w3.eth.wait_for_transaction_receipt(
 # 4 - Wait until random is ready
 exist = False
 while not exist:
-    exist = oracle_fx.existRandom(receipt).call()
+    exist = oracle_fx.existsRandom(receipt).call()
     print(f"ORACLE.call.existRandom(RECEIPT) return '{exist}'")
     if not exist:
         print("\tRandom not exists yet - Retry in 30 sec...")
