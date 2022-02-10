@@ -21,7 +21,6 @@ contract three_card {
     struct Bet {
         uint8 card;
         uint256 fiches;
-        // bool hasResult; = se winner_card = 0 non c'è
         uint256 used_random;
         uint8 pulled_out_card;
         bool win;
@@ -31,8 +30,6 @@ contract three_card {
         uint256 fiches;
         uint256 pendingReceipt;
         mapping(uint256 => Bet) receiptBet;
-
-        // memorizza in sequenza le giocate fatte dall'utente (i dettagli sono in receiptBet)
         uint256[] receipts;
     }
 
@@ -48,13 +45,13 @@ contract three_card {
         _owner = msg.sender;
     }
 
-    // restituisce il numero di fiches possedute da un address
+    // return number of fiches ownede by an address
     function _countFiches(address a) private view returns (uint256){
         return _address_player[a].fiches;
     }
 
 
-    // regala fiches a un account che non ne ha
+    // gift fiches to an address
     function askFreeFiches() public {
         Player storage player = _address_player[msg.sender];
         require(player.fiches == 0, "You have fiches");
@@ -65,9 +62,6 @@ contract three_card {
         Bet memory bet;
         bet.card = card;
         bet.fiches = fiches;
-        // bet.used_random: 0;
-        // bet.pulled_out_card: 0;
-        // bet.win: false;
 
         Player storage player = _address_player[msg.sender];
 
@@ -85,22 +79,16 @@ contract three_card {
         // ORACLE REQUEST FOR RANDOM (TRANSACTION)
         _oracleRequestRandom(receipt, fee);
 
-        // (bool successRequest, bytes memory _x) = _oracle.call{value: fee}(abi.encodeWithSignature("requestRandom()", receipt));
-        // require(successRequest == true, "ORACLE Call to requestRandom(receipt) failed");
-
         player.pendingReceipt = receipt;
         player.receiptBet[receipt] = bet;
         player.receipts.push(receipt);
     }
 
     function betResult() public {
-        // incluso in existsBetResult >>> require(receipt, "Not bet found");
         require(existsBetResult(), "Bet result is not ready");
 
         Player storage player = _address_player[msg.sender];
         uint256 pendingReceipt = player.pendingReceipt;
-
-        // porto il random a tre valori possibilie, 1, 2 e 3
 
         Bet storage receiptBet = player.receiptBet[pendingReceipt];
         receiptBet.used_random = _oracleGetRandom(pendingReceipt);
@@ -109,19 +97,16 @@ contract three_card {
         receiptBet.win = receiptBet.pulled_out_card == receiptBet.card;
 
         if (receiptBet.win){
-            // vinto
             player.fiches += receiptBet.fiches;
         } else {
-            // perso
             player.fiches -= receiptBet.fiches;
         }
 
-        // rimuovo scommessa pendente
         player.pendingReceipt = 0;
     }
 
 
-    // metodo da chiamare per sapere quando è possibile ottenere il risultato della scommessa
+    // to call to know when the result is ready
     function existsBetResult() public view returns (bool) {
         Player storage player = _address_player[msg.sender];
         uint256 pendingReceipt = player.pendingReceipt;
