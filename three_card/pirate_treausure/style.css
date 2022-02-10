@@ -1,0 +1,112 @@
+
+        html, body {
+            height: 100%;
+        }
+        body {
+            margin: 0;
+        }
+
+        #game-wrapper {
+            height: 100%;
+            display: flex;
+            align-content: center;
+            justify-content: center;
+            align-items: center;
+            background-image: url("compass.jpg");
+            background-size: cover;
+        }
+
+    #game {
+        width: 640px;
+        height: 480px;
+        padding: 20px;
+        display: flex;
+        align-content: center;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        background-color: rgba(0, 0, 0, 0.3);
+        border-radius: 25px;
+        /*border: solid 2px #1d3d9d;*/
+    }
+
+    .card-selector input {
+        margin: 0;
+        padding: 0;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+    }
+
+    .card_1{background-image:url("chest_closed.png");}
+    .card_2{background-image:url("chest_closed.png");}
+    .card_3{background-image:url("chest_closed.png");}
+
+    .card-selector input:active +.cc-card{
+        opacity: .9;
+    }
+
+    .card-selector input:checked +.cc-card {
+        -webkit-filter: none;
+        -moz-filter: none;
+        filter: none;
+
+    }
+    .cc-card {
+        cursor: pointer;
+        background-size: contain;
+        background-repeat: no-repeat;
+        display: inline-block;
+        width: 180px;
+        height: 180px;
+        -webkit-transition: all 100ms ease-in;
+        -moz-transition: all 100ms ease-in;
+        transition: all 100ms ease-in;
+        -webkit-filter: brightness(1.8) grayscale(1) opacity(.7);
+        -moz-filter: brightness(1.8) grayscale(1) opacity(.7);
+        filter: brightness(1.8) grayscale(1) opacity(.7);
+    }
+    .cc-card:hover {
+        -webkit-filter: brightness(1.2) grayscale(.5) opacity(.9);
+        -moz-filter: brightness(1.2) grayscale(.5) opacity(.9);
+        filter: brightness(1.2) grayscale(.5) opacity(.9);
+    }
+
+    .opaque {
+        filter: brightness(1.8) grayscale(1) opacity(.7);
+    }
+
+    #player-fiches{
+        position: fixed;
+        right: 15px;
+        top: 15px;
+    }
+
+    #player-address {
+        position: fixed;
+        left: 15px;
+        top: 15px;
+    }
+    #player-address > i {
+        color: #1d3d9d;
+    }
+
+    .coins-color {
+        color: goldenrod;
+    }
+
+    .chest-color {
+        color: #513117;
+    }
+    .chest-image {
+        width: 130px;
+    }
+
+    .alert-small {
+        font-size: .4rem;
+        color: #fff;
+        font-weight: bold;
+        text-transform: uppercase;
+        padding: 0;
+        margin: 0;
+    }

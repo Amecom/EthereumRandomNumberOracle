@@ -10,7 +10,7 @@ EOA_ACCOUNT = Web3.toChecksumAddress(safe.EOA_ACCOUNT)
 EOA_PRIVATE_KEY = safe.EOA_PRIVATE_KEY
 CHECK_LATENCY = 60
 CHECK_TIMEOUT = 600
-ROPSTEN_ORACLE_ADDRESS = "0x4D63600dF12128f2c1A91E451B2E96AFA84a12EE"
+ROPSTEN_ORACLE_ADDRESS = "0xb8F53Ed1d3F3C1ECC26c832365c478FdD6a4486C"
 ROPSTEN_LOTTERY_ADDRESS = "0x737e229cc849047a35d7B2B9ca6f1Ebd6eaF1a3F"
 
 oracle_address = Web3.toChecksumAddress(ROPSTEN_ORACLE_ADDRESS)
@@ -168,6 +168,25 @@ oracle_abi = [
         "type": "function"
     },
     {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "receipt",
+                "type": "uint256"
+            }
+        ],
+        "name": "getRandomFromOrigin",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
         "inputs": [],
         "name": "getReceipt",
         "outputs": [
@@ -257,19 +276,6 @@ oracle_abi = [
             }
         ],
         "name": "setManager",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "uint256",
-                "name": "newSeed",
-                "type": "uint256"
-            }
-        ],
-        "name": "setUnsequencedSeed",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
